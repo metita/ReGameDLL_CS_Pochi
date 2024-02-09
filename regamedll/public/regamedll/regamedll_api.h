@@ -813,6 +813,10 @@ struct ReGameFuncs_t {
 	class CGrenade *(*SpawnGrenade)(WeaponIdType weaponId, entvars_t *pevOwner, Vector &vecSrc, Vector &vecThrow, float time, int iTeam, unsigned short usEvent);
 };
 
+struct ReGameBotFuncs_t {
+	NavErrorType (*LoadNavigationMap)();
+}
+
 class IReGameApi {
 public:
 	virtual ~IReGameApi() {}
@@ -820,6 +824,7 @@ public:
 	virtual int GetMajorVersion() = 0;
 	virtual int GetMinorVersion() = 0;
 	virtual const ReGameFuncs_t *GetFuncs() = 0;
+	virtual const ReGameBotFuncs_t *GetBotFuncs() = 0;
 	virtual IReGameHookchains *GetHookchains() = 0;
 
 	virtual class CGameRules *GetGameRules() = 0;

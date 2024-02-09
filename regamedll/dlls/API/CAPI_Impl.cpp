@@ -178,6 +178,15 @@ ReGameFuncs_t g_ReGameApiFuncs = {
 	SpawnGrenade_api,
 };
 
+NavErrorType EXT_FUNC LoadNavigationMap_api()
+{
+	return LoadNavigationMap();
+}
+
+ReGameBotFuncs_t g_ReGameBotFuncs = {
+	LoadNavigationMap_api,
+};
+
 GAMEHOOK_REGISTRY(CBasePlayer_Spawn);
 GAMEHOOK_REGISTRY(CBasePlayer_Precache);
 GAMEHOOK_REGISTRY(CBasePlayer_ObjectCaps);
@@ -346,6 +355,10 @@ int CReGameApi::GetMinorVersion() {
 
 const ReGameFuncs_t *CReGameApi::GetFuncs() {
 	return &g_ReGameApiFuncs;
+}
+
+const ReGameBotFuncs_t *CReGameApi::GetBotFuncs() {
+	return &g_ReGameBotFuncs:
 }
 
 IReGameHookchains *CReGameApi::GetHookchains() {
