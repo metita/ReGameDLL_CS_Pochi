@@ -815,7 +815,7 @@ struct ReGameFuncs_t {
 
 struct ReGameBotFuncs_t {
 	NavErrorType (*LoadNavigationMap)();
-}
+};
 
 class IReGameApi {
 public:

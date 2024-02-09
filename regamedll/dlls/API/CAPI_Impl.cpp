@@ -358,7 +358,7 @@ const ReGameFuncs_t *CReGameApi::GetFuncs() {
 }
 
 const ReGameBotFuncs_t *CReGameApi::GetBotFuncs() {
-	return &g_ReGameBotFuncs:
+	return &g_ReGameBotFuncs;
 }
 
 IReGameHookchains *CReGameApi::GetHookchains() {
