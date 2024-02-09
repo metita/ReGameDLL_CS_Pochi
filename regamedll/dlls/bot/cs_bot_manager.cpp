@@ -408,10 +408,9 @@ void CCSBotManager::ServerCommand(const char *pcmd)
 
 			if (pPlayer->IsBot())
 			{
+				CCSBot *pBot = static_cast<CCSBot *>(pPlayer);
 				if (killThemAll || FStrEq(name, msg))
-				{
-					pPlayer->Kill();
-				}
+					pBot->Kill();
 			}
 		}
 	}
@@ -1452,7 +1451,7 @@ void CCSBotManager::SetLooseBomb(CBaseEntity *bomb)
 	if (bomb)
 	{
 		m_looseBombArea = TheNavAreaGrid.GetNearestNavArea(&bomb->pev->origin);
-		DbgAssert(m_looseBombArea); // TODO: Need investigation and find out why it cannot find nearest area for a lost bomb, just catch it
+		DbgAssert(!TheNavAreaGrid.IsValid() || m_looseBombArea); // TODO: Need investigation and find out why it cannot find nearest area for a lost bomb, just catch it
 	}
 	else
 	{

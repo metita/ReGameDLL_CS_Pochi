@@ -3108,11 +3108,16 @@ void CBasePlayer::WaterMove()
 		// not underwater
 
 		// play 'up for air' sound
-		if (pev->air_finished < gpGlobals->time)
-			EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_wade1.wav", VOL_NORM, ATTN_NORM);
+#ifdef REGAMEDLL_FIXES
+		if (pev->flags & FL_INWATER)
+#endif
+		{
+			if (pev->air_finished < gpGlobals->time)
+				EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_wade1.wav", VOL_NORM, ATTN_NORM);
 
-		else if (pev->air_finished < gpGlobals->time + 9)
-			EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_wade2.wav", VOL_NORM, ATTN_NORM);
+			else if (pev->air_finished < gpGlobals->time + 9)
+				EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_wade2.wav", VOL_NORM, ATTN_NORM);
+		}
 
 		pev->air_finished = gpGlobals->time + AIRTIME;
 		pev->dmg = 2;
@@ -6342,6 +6347,44 @@ CBaseEntity *CBasePlayer::GiveNamedItemEx(const char *pszName)
 		return nullptr;
 	}
 #endif
+
+	return pEntity;
+}
+
+// Creates a copy of the specified entity (pEntitySource) and gives it to the player
+// The cloned entity inherits base properties (entvars) of the original entity
+// Returns Pointer to the cloned entity, or NULL if the entity cannot be created
+CBaseEntity *CBasePlayer::GiveCopyItem(CBaseEntity *pEntitySource)
+{
+	edict_t *pEdict = CREATE_NAMED_ENTITY(pEntitySource->pev->classname);
+	if (FNullEnt(pEdict))
+	{
+		ALERT(at_console, "NULL Ent in GiveCloneItem classname `%s`!\n", STRING(pEntitySource->pev->classname));
+		return nullptr;
+	}
+
+	// copy entity properties
+	Q_memcpy(&pEdict->v, pEntitySource->pev, sizeof(pEdict->v));
+
+	pEdict->v.pContainingEntity = pEdict;
+	pEdict->v.origin = pev->origin;
+	pEdict->v.spawnflags |= SF_NORESPAWN;
+	pEdict->v.owner = NULL; // will re-link owner after touching
+	pEdict->v.chain = ENT(pEntitySource->pev); // refer to source copy entity
+
+	DispatchSpawn(pEdict);
+	DispatchTouch(pEdict, ENT(pev));
+	pEdict->v.chain = NULL;
+
+	CBaseEntity *pEntity = GET_PRIVATE<CBaseEntity>(pEdict);
+
+	// not allow the item to fall to the ground.
+	if (FNullEnt(pEdict->v.owner) || pEdict->v.owner != edict())
+	{
+		pEdict->v.flags |= FL_KILLME;
+		UTIL_Remove(pEntity);
+		return nullptr;
+	}
 
 	return pEntity;
 }
