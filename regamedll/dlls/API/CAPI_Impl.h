@@ -1068,7 +1068,6 @@ public:
 
 extern CReGameHookchains g_ReGameHookchains;
 extern ReGameFuncs_t g_ReGameApiFuncs;
-extern ReGameBotFuncs_t g_ReGameBotFuncs;
 
 class CReGameApi: public IReGameApi {
 public:
@@ -1076,7 +1075,6 @@ public:
 	EXT_FUNC virtual int GetMinorVersion();
 
 	EXT_FUNC virtual const ReGameFuncs_t *GetFuncs();
-	EXT_FUNC virtual const ReGameBotFuncs_t *GetBotFuncs();
 	EXT_FUNC virtual IReGameHookchains *GetHookchains();
 
 	EXT_FUNC virtual CGameRules *GetGameRules();

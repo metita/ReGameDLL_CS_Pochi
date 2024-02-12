@@ -811,10 +811,18 @@ struct ReGameFuncs_t {
 	void (*TextureTypePlaySound)(TraceResult *ptr, Vector vecSrc, Vector vecEnd, int iBulletType);
 	class CWeaponBox *(*CreateWeaponBox)(CBasePlayerItem *pItem, CBasePlayer *pPlayerOwner, const char *modelName, Vector &origin, Vector &angles, Vector &velocity, float lifeTime, bool packAmmo);
 	class CGrenade *(*SpawnGrenade)(WeaponIdType weaponId, entvars_t *pevOwner, Vector &vecSrc, Vector &vecThrow, float time, int iTeam, unsigned short usEvent);
-};
 
-struct ReGameBotFuncs_t {
+	// navs
 	NavErrorType (*LoadNavigationMap)();
+	void (*DestroyNavigationMap)();
+
+	ConnectInfoData *(*AddConnectInfoList)();
+	bool (*RemoveConnectInfoList)(ConnectInfoData *path);
+	void (*DestroyConnectInfoList)();
+
+	class CNavArea *(*GetNearestNavArea)(const Vector *vecOrigin, bool anyZ);
+	void (*GetClosestPointOnArea)(CNavArea *pArea, const Vector *vecOrigin, Vector *vecPosition); 
+	ConnectInfoData *(*ComputePath)(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
 };
 
 class IReGameApi {
@@ -824,7 +832,6 @@ public:
 	virtual int GetMajorVersion() = 0;
 	virtual int GetMinorVersion() = 0;
 	virtual const ReGameFuncs_t *GetFuncs() = 0;
-	virtual const ReGameBotFuncs_t *GetBotFuncs() = 0;
 	virtual IReGameHookchains *GetHookchains() = 0;
 
 	virtual class CGameRules *GetGameRules() = 0;

@@ -150,6 +150,7 @@ set(SHARED_SRCS
 	"game_shared/bot/nav_file.cpp"
 	"game_shared/bot/nav_node.cpp"
 	"game_shared/bot/nav_path.cpp"
+	"game_shared/bot/nav_api.cpp"
 	"pm_shared/pm_debug.cpp"
 	"pm_shared/pm_math.cpp"
 	"pm_shared/pm_shared.cpp"

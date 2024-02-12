@@ -128,6 +128,7 @@ using FloatRef = float;
 #include "hostage/hostage_localnav.h"
 
 #include "bot/cs_bot.h"
+#include "game_shared/bot/nav_api.h"
 
 // Addons
 #include "addons/item_airbox.h"

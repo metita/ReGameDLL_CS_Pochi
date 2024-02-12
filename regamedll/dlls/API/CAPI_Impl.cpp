@@ -143,6 +143,48 @@ CGrenade *EXT_FUNC SpawnGrenade_api(WeaponIdType weaponId, entvars_t *pevOwner, 
 	return nullptr;
 }
 
+NavErrorType EXT_FUNC LoadNavigationMap_api()
+{
+	return LoadNavigationMap();
+}
+
+void EXT_FUNC DestroyNavigationMap_api()
+{
+	DestroyNavigationMap();
+}
+
+CNavArea* EXT_FUNC GetNearestNavArea_api(const Vector *vecOrigin, bool anyZ)
+{
+	CNavArea *pArea = TheNavAreaGrid.GetNearestNavArea(vecOrigin, anyZ);
+
+	return pArea;
+}
+
+void EXT_FUNC GetClosestPointOnArea_api(CNavArea *pArea, const Vector *vecOrigin, Vector *vecPosition)
+{
+	pArea->GetClosestPointOnArea(vecOrigin, vecPosition);
+}
+
+ConnectInfoData* EXT_FUNC AddConnectInfoList_api()
+{
+	return AddConnectInfoList();
+}
+
+bool EXT_FUNC RemoveConnectInfoList_api(ConnectInfoData *data)
+{
+	return RemoveConnectInfoList(data);
+}
+
+void EXT_FUNC DestroyConnectInfoList_api()
+{
+	DestroyConnectInfoList();
+}
+
+ConnectInfoData* EXT_FUNC ComputePath_extapi(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
+{
+	return ComputePath_api(data, startArea, start, goalArea, goal, route);
+}
+
 ReGameFuncs_t g_ReGameApiFuncs = {
 	CREATE_NAMED_ENTITY,
 
@@ -176,15 +218,17 @@ ReGameFuncs_t g_ReGameApiFuncs = {
 	TextureTypePlaySound_api,
 	CreateWeaponBox_api,
 	SpawnGrenade_api,
-};
 
-NavErrorType EXT_FUNC LoadNavigationMap_api()
-{
-	return LoadNavigationMap();
-}
-
-ReGameBotFuncs_t g_ReGameBotFuncs = {
 	LoadNavigationMap_api,
+	DestroyNavigationMap_api,
+
+	AddConnectInfoList_api,
+	RemoveConnectInfoList_api,
+	DestroyConnectInfoList_api,
+
+	GetNearestNavArea_api,
+	GetClosestPointOnArea_api,
+	ComputePath_extapi,
 };
 
 GAMEHOOK_REGISTRY(CBasePlayer_Spawn);
@@ -355,10 +399,6 @@ int CReGameApi::GetMinorVersion() {
 
 const ReGameFuncs_t *CReGameApi::GetFuncs() {
 	return &g_ReGameApiFuncs;
-}
-
-const ReGameBotFuncs_t *CReGameApi::GetBotFuncs() {
-	return &g_ReGameBotFuncs;
 }
 
 IReGameHookchains *CReGameApi::GetHookchains() {

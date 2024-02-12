@@ -908,6 +908,11 @@ void DestroyNavigationMap()
 		delete area;
 	}
 
+#ifdef REGAMEDLL_API
+	// destroy them too, they arent useful anymore
+	DestroyConnectInfoList();
+#endif
+
 	CNavArea::m_isReset = false;
 
 	// destroy ladder representations
