@@ -823,6 +823,8 @@ struct ReGameFuncs_t {
 	class CNavArea *(*GetNearestNavArea)(const Vector *vecOrigin, bool anyZ);
 	void (*GetClosestPointOnArea)(CNavArea *pArea, const Vector *vecOrigin, Vector *vecPosition); 
 	ConnectInfoData *(*ComputePath)(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
+
+	ConnectInfoList *(*GetConnectInfoList)();
 };
 
 class IReGameApi {

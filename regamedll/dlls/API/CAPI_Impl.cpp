@@ -185,6 +185,11 @@ ConnectInfoData* EXT_FUNC ComputePath_extapi(ConnectInfoData *data, CNavArea *st
 	return ComputePath_api(data, startArea, start, goalArea, goal, route);
 }
 
+ConnectInfoList* EXT_FUNC GetConnectInfoList_api()
+{
+	return &TheConnectInfoList;
+}
+
 ReGameFuncs_t g_ReGameApiFuncs = {
 	CREATE_NAMED_ENTITY,
 
@@ -229,6 +234,8 @@ ReGameFuncs_t g_ReGameApiFuncs = {
 	GetNearestNavArea_api,
 	GetClosestPointOnArea_api,
 	ComputePath_extapi,
+
+	GetConnectInfoList_api,
 };
 
 GAMEHOOK_REGISTRY(CBasePlayer_Spawn);
