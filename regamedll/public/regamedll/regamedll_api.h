@@ -816,13 +816,15 @@ struct ReGameFuncs_t {
 	NavErrorType (*LoadNavigationMap)();
 	void (*DestroyNavigationMap)();
 
-	ConnectInfoData *(*AddConnectInfoList)();
-	bool (*RemoveConnectInfoList)(ConnectInfoData *path);
+	ConnectInfoData *(*AddConnectInfoList)(CBaseEntity *entity);
+	bool (*RemoveConnectInfoList)(CBaseEntity *entity);
 	void (*DestroyConnectInfoList)();
 
 	class CNavArea *(*GetNearestNavArea)(const Vector *vecOrigin, bool anyZ);
 	void (*GetClosestPointOnArea)(CNavArea *pArea, const Vector *vecOrigin, Vector *vecPosition); 
-	ConnectInfoData *(*ComputePath)(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
+
+	ConnectInfoData *(*ComputePath)(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
+	bool (*UpdatePathMovement)(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D);
 
 	ConnectInfoList *(*GetConnectInfoList)();
 };

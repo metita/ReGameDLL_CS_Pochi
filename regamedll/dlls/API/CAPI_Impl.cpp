@@ -165,14 +165,14 @@ void EXT_FUNC GetClosestPointOnArea_api(CNavArea *pArea, const Vector *vecOrigin
 	pArea->GetClosestPointOnArea(vecOrigin, vecPosition);
 }
 
-ConnectInfoData* EXT_FUNC AddConnectInfoList_api()
+ConnectInfoData* EXT_FUNC AddConnectInfoList_api(CBaseEntity *entity)
 {
-	return AddConnectInfoList();
+	return AddConnectInfoList(entity);
 }
 
-bool EXT_FUNC RemoveConnectInfoList_api(ConnectInfoData *data)
+bool EXT_FUNC RemoveConnectInfoList_api(CBaseEntity *entity)
 {
-	return RemoveConnectInfoList(data);
+	return RemoveConnectInfoList(entity);
 }
 
 void EXT_FUNC DestroyConnectInfoList_api()
@@ -180,9 +180,14 @@ void EXT_FUNC DestroyConnectInfoList_api()
 	DestroyConnectInfoList();
 }
 
-ConnectInfoData* EXT_FUNC ComputePath_extapi(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
+ConnectInfoData* EXT_FUNC ComputePath_extapi(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
 {
-	return ComputePath_api(data, startArea, start, goalArea, goal, route);
+	return ComputePath_api(entity, data, startArea, start, goalArea, goal, route);
+}
+
+bool EXT_FUNC UpdatePathMovement_api(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D)
+{
+	return UpdatePathMovement(entity, data, tolerance, check2D);
 }
 
 ConnectInfoList* EXT_FUNC GetConnectInfoList_api()
@@ -233,8 +238,10 @@ ReGameFuncs_t g_ReGameApiFuncs = {
 
 	GetNearestNavArea_api,
 	GetClosestPointOnArea_api,
-	ComputePath_extapi,
 
+	ComputePath_extapi,
+	UpdatePathMovement_api,
+	
 	GetConnectInfoList_api,
 };
 

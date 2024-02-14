@@ -40,19 +40,27 @@ struct ConnectInfo_api
 
 struct ConnectInfoData
 {
+	CBaseEntity* entity;		// path entity
 	ConnectInfo_api *path;		// path pointer
+	Vector currentGoal;			// path current goal (fast access)
 	int length;					// path length
 	int index;					// path current index
     float update;               // path next update
+	float update_min;			// path min delay update
+	float update_max;			// path max delay update
 };
 
 typedef std::list<ConnectInfoData *> ConnectInfoList;
 extern ConnectInfoList TheConnectInfoList;
 
-ConnectInfoData* AddConnectInfoList();
-bool RemoveConnectInfoList(ConnectInfoData *data);
+ConnectInfoData* AddConnectInfoList(CBaseEntity *entity = nullptr);
+ConnectInfoData* GetConnectInfoList(CBaseEntity *entity);
+bool RemoveConnectInfoList(CBaseEntity *entity);
 void DestroyConnectInfoList();
 
 void BuildTrivialPath_api(ConnectInfoData *data, ConnectInfo_api *path, CNavArea *startArea, const Vector *start, const Vector *goal);
 bool ComputePathPositions_api(ConnectInfo_api *path, int &length);
-ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
+
+ConnectInfoData* ComputePath_api(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
+
+bool UpdatePathMovement(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D);

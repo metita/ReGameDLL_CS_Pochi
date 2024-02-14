@@ -2,30 +2,63 @@
 
 ConnectInfoList TheConnectInfoList;
 
-ConnectInfoData* AddConnectInfoList()
+ConnectInfoData* AddConnectInfoList(CBaseEntity* entity)
 {
+	if(!entity)
+		return nullptr;
+
+	// already with something
+	if(TheConnectInfoList.size())
+	{
+		for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
+		{
+			// avoids creating another one (should work if another one was created with entity = nullptr)
+			if(entity == (*iter)->entity)
+				return *iter;
+		}
+	}
+
+	// Init another one then
 	ConnectInfoData *data = new ConnectInfoData;
 	
-    // Init anything to avoid weird things
+	data->entity = entity;
     data->path = new ConnectInfo_api[MAX_PATH_LENGTH_API];
-    data->update = gpGlobals->time;
+    
     data->length = 0;
     data->index = 0;
+
+	data->currentGoal = entity->pev->origin;
+
+	// Update time (0.4 and 0.6 are similar update rates for bots)
+	data->update = 0;
+	data->update_min = 0.4f;
+	data->update_max = 0.6f;
 
 	TheConnectInfoList.push_front(data);
 	return data;
 }
 
-bool RemoveConnectInfoList(ConnectInfoData *data)
+ConnectInfoData* GetConnectInfoList(CBaseEntity *entity)
 {
-	if(!data)
-		return false;
-
 	// loop till gone
 	for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
 	{
-		if(*iter == data)
+		if((*iter)->entity == entity)
+			return *iter;
+	}
+
+	return nullptr;
+}
+
+bool RemoveConnectInfoList(CBaseEntity *entity)
+{
+	// loop till gone
+	for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
+	{
+		if((*iter)->entity == entity)
 		{
+			ConnectInfoData *data = *iter;
+
 			TheConnectInfoList.remove(data);
 			
 			delete[] data->path;
@@ -36,8 +69,6 @@ bool RemoveConnectInfoList(ConnectInfoData *data)
 		}
 	}
 
-	// update anyway
-	data = nullptr;
 	return false;
 }
 
@@ -69,6 +100,7 @@ void BuildTrivialPath_api(ConnectInfoData *data, ConnectInfo_api *path, CNavArea
 
 	data->index = 1;
 	data->length = 2;
+	data->currentGoal = *goal;
 }
 
 bool ComputePathPositions_api(ConnectInfo_api *path, int &length)
@@ -186,7 +218,7 @@ bool ComputePathPositions_api(ConnectInfo_api *path, int &length)
 	return true;
 }
 
-ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
+ConnectInfoData* ComputePath_api(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
 {
 	// NOTE: This is a cheap way to do this, cuz I only reassembled the base code, needs extra functions to check if it can TRULY reach the path
 	// should provide start area
@@ -196,21 +228,18 @@ ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, con
 	// MAX_PATH_LENGTH is 256
 	// this nooby way could be better (I guess), free feel to pr to improve this code
 	// even if bots already does this, is this smart enough?
-	
-	if(!data)
+	if(!data || data->entity != entity)
     {
 	    // If no pointer is provided, add one
-    	data = AddConnectInfoList();
-    }
-    else
-    {
-        // too fast
-        if(data->update > gpGlobals->time)
-            return data;    
+    	data = AddConnectInfoList(entity);
     }
     
+	 // too fast
+    if(data->update > gpGlobals->time)
+        return data;
+    
     // Generate one the next time (same as cs_bot_pathfind.cpp)
-    data->update = gpGlobals->time + RANDOM_FLOAT(0.4f, 0.6f);
+    data->update = gpGlobals->time + RANDOM_FLOAT(data->update_min, data->update_max);
     ConnectInfo_api *path = data->path;
 
 	Vector vecEndPosition = *goal;
@@ -220,7 +249,7 @@ ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, con
 		vecEndPosition.z = goalArea->GetZ(&vecEndPosition);
 	else
 		GetGroundHeight(&vecEndPosition, &vecEndPosition.z);
-
+	
 	// if we are already in the goal area, build trivial path
 	if (startArea == goalArea)
 	{
@@ -280,7 +309,64 @@ ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, con
 	path[data->length].ladder = nullptr;
 	path[data->length].how = NUM_TRAVERSE_TYPES;
 
+	data->currentGoal = path[1].pos;
 	data->length++;
 
 	return data;
+}
+
+bool UpdatePathMovement(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D)
+{
+	// No entity provided
+	if(!entity)
+		return false;
+
+	// no pointer provided, find one || entity is not the same
+	if(!data || data->entity != entity)
+	{
+		// Provide one then
+		data = GetConnectInfoList(entity);
+
+		if(!data)
+			return false;
+	}
+
+	// no need
+	if(data->index >= data->length)
+		return true;
+
+	Vector reference;
+
+	// 2D mode is no height diff (duh)
+	if(check2D)
+	{
+		reference = data->currentGoal - entity->pev->origin;
+		reference.z = 0.0f;
+	}
+	else
+	{
+		// go to the entity's feet
+		reference = entity->pev->origin;
+
+		// should always be z <= 0
+		reference.z += entity->pev->mins.z;
+
+		reference = data->currentGoal - reference;
+	}
+
+	// is near
+	if(reference.Length() <= tolerance)
+	{
+		// go to the next one
+
+		// keep it at the max
+		if(++data->index >= data->length)
+			data->index = (data->length) - 1;
+
+		// Set new goal
+		data->currentGoal = data->path[data->index].pos;
+		return true;
+	}
+
+	return false;
 }
