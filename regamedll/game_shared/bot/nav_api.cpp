@@ -2,7 +2,7 @@
 
 ConnectInfoList TheConnectInfoList;
 
-ConnectInfoData* AddConnectInfoList(CBaseEntity* entity)
+ConnectInfoData* AddConnectInfoList(CBaseEntity* entity, float update_min, float update_max)
 {
 	if(!entity)
 		return nullptr;
@@ -12,7 +12,7 @@ ConnectInfoData* AddConnectInfoList(CBaseEntity* entity)
 	{
 		for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
 		{
-			// avoids creating another one (should work if another one was created with entity = nullptr)
+			// avoids creating another one
 			if(entity == (*iter)->entity)
 				return *iter;
 		}
@@ -28,11 +28,12 @@ ConnectInfoData* AddConnectInfoList(CBaseEntity* entity)
     data->index = 0;
 
 	data->currentGoal = entity->pev->origin;
+	data->currentArea = TheNavAreaGrid.GetNavArea(&entity->pev->origin);
 
-	// Update time (0.4 and 0.6 are similar update rates for bots)
+	// Update time
 	data->update = 0;
-	data->update_min = 0.4f;
-	data->update_max = 0.6f;
+	data->update_min = update_min;
+	data->update_max = update_max;
 
 	TheConnectInfoList.push_front(data);
 	return data;
@@ -218,25 +219,48 @@ bool ComputePathPositions_api(ConnectInfo_api *path, int &length)
 	return true;
 }
 
-ConnectInfoData* ComputePath_api(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
+ConnectInfoData* ComputePath(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
 {
 	// NOTE: This is a cheap way to do this, cuz I only reassembled the base code, needs extra functions to check if it can TRULY reach the path
-	// should provide start area
-	if(!startArea)
-		return data;
-	
-	// MAX_PATH_LENGTH is 256
+
 	// this nooby way could be better (I guess), free feel to pr to improve this code
 	// even if bots already does this, is this smart enough?
 	if(!data || data->entity != entity)
     {
-	    // If no pointer is provided, add one
+	    // If no pointer or erroneous one was provided, add one
     	data = AddConnectInfoList(entity);
     }
     
-	 // too fast
+	// too fast
     if(data->update > gpGlobals->time)
         return data;
+
+	// update current area
+	if (!data->currentArea || !data->currentArea->Contains(&entity->pev->origin))
+	{
+		// yes, this nested stupid code is for searching new areas
+		// it needs this kind of check or something stupid could happen
+		CNavArea *area = TheNavAreaGrid.GetNavArea(&entity->pev->origin);
+
+		// no area found, try searching one near
+		if(!area)
+			area = TheNavAreaGrid.GetNearestNavArea(&entity->pev->origin);
+
+		// available area
+		if(area)
+			data->currentArea = area;
+	}
+
+	// no start area provided
+	if(!startArea)
+	{
+		// use current's area
+		startArea = data->currentArea;
+
+		// no area to check, return data then
+		if(!startArea)
+			return data;
+	}
     
     // Generate one the next time (same as cs_bot_pathfind.cpp)
     data->update = gpGlobals->time + RANDOM_FLOAT(data->update_min, data->update_max);
@@ -317,55 +341,80 @@ ConnectInfoData* ComputePath_api(CBaseEntity *entity, ConnectInfoData *data, CNa
 
 bool UpdatePathMovement(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D)
 {
-	// No entity provided
-	if(!entity)
-		return false;
-
-	// no pointer provided, find one || entity is not the same
+	// no pointer or erroneous one provided
 	if(!data || data->entity != entity)
 	{
 		// Provide one then
 		data = GetConnectInfoList(entity);
-
-		if(!data)
-			return false;
 	}
+	
+	// there is no length (entity was spawned outside of map, yes, it crashed for me while testing)
+	if(!data->length)
+		return data;
 
-	// no need
-	if(data->index >= data->length)
-		return true;
+	Vector origin = entity->pev->origin;
+	Vector goal = origin + Vector(0, 0, entity->pev->mins.z);
 
-	Vector reference;
+	// yes, some npc's models can be bigger than that, so we have to make sure the current nav area is within entity's feet
+	float limit = Q_max(120.0f, static_cast<float>(abs(entity->pev->mins.z)));
+	CNavArea *currentArea = TheNavAreaGrid.GetNavArea(&goal, limit);
 
-	// 2D mode is no height diff (duh)
-	if(check2D)
+	// set new area
+	if(currentArea)
 	{
-		reference = data->currentGoal - entity->pev->origin;
-		reference.z = 0.0f;
+		// update current area then
+		data->currentArea = currentArea;
 	}
 	else
 	{
-		// go to the entity's feet
-		reference = entity->pev->origin;
+		// use latest
+		if(!data->currentArea)
+			return false;
 
-		// should always be z <= 0
-		reference.z += entity->pev->mins.z;
-
-		reference = data->currentGoal - reference;
+		currentArea = data->currentArea;
 	}
+	
+	// not using 2D, go down (mins should always be z <= 0)
+	if(!check2D)
+		origin.z += entity->pev->mins.z;
+	
+	// check bounds
+	if(data->index >= data->length)
+		data->index = (data->length) - 1;
+	
+	// loop through these indexes, cuz entity could be behind or already surpassed them
+	int start = data->index - 3;
 
-	// is near
-	if(reference.Length() <= tolerance)
+	if(start < 1)
+		start = 1;
+
+	int end = start + 3;
+
+	if(end > data->length)
+		end = data->length;
+
+	CNavArea *area;
+	float distance;
+
+	for(int i = start; i < end; i++)
 	{
-		// go to the next one
+		area = data->path[i].area;
 
-		// keep it at the max
-		if(++data->index >= data->length)
-			data->index = (data->length) - 1;
+		if(currentArea != area)
+			continue;
 
-		// Set new goal
-		data->currentGoal = data->path[data->index].pos;
-		return true;
+		goal = *area->GetCenter();
+		distance = check2D ? (goal - origin).Length2D() : (goal - origin).Length();
+
+		if(distance <= tolerance)
+		{
+			// end of the path
+			if(++data->index >= data->length)
+				data->index = data->length - 1;
+
+			data->currentGoal = data->path[data->index].pos;
+			return true;
+		}
 	}
 
 	return false;

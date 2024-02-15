@@ -42,6 +42,7 @@ struct ConnectInfoData
 {
 	CBaseEntity* entity;		// path entity
 	ConnectInfo_api *path;		// path pointer
+	CNavArea *currentArea;		// path's current area
 	Vector currentGoal;			// path current goal (fast access)
 	int length;					// path length
 	int index;					// path current index
@@ -53,7 +54,8 @@ struct ConnectInfoData
 typedef std::list<ConnectInfoData *> ConnectInfoList;
 extern ConnectInfoList TheConnectInfoList;
 
-ConnectInfoData* AddConnectInfoList(CBaseEntity *entity = nullptr);
+// 0.4 and 0.6 are taken from cs_bot_pathfind respectively
+ConnectInfoData* AddConnectInfoList(CBaseEntity *entity, float update_min = 0.4f, float update_max = 0.6f);
 ConnectInfoData* GetConnectInfoList(CBaseEntity *entity);
 bool RemoveConnectInfoList(CBaseEntity *entity);
 void DestroyConnectInfoList();
@@ -61,6 +63,6 @@ void DestroyConnectInfoList();
 void BuildTrivialPath_api(ConnectInfoData *data, ConnectInfo_api *path, CNavArea *startArea, const Vector *start, const Vector *goal);
 bool ComputePathPositions_api(ConnectInfo_api *path, int &length);
 
-ConnectInfoData* ComputePath_api(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
+ConnectInfoData* ComputePath(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route);
 
 bool UpdatePathMovement(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D);
