@@ -2,30 +2,64 @@
 
 ConnectInfoList TheConnectInfoList;
 
-ConnectInfoData* AddConnectInfoList()
+ConnectInfoData* AddConnectInfoList(CBaseEntity* entity, float update_min, float update_max)
 {
+	if(!entity)
+		return nullptr;
+
+	// already with something
+	if(TheConnectInfoList.size())
+	{
+		for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
+		{
+			// avoids creating another one
+			if(entity == (*iter)->entity)
+				return *iter;
+		}
+	}
+
+	// Init another one then
 	ConnectInfoData *data = new ConnectInfoData;
 	
-    // Init anything to avoid weird things
+	data->entity = entity;
     data->path = new ConnectInfo_api[MAX_PATH_LENGTH_API];
-    data->update = gpGlobals->time;
+    
     data->length = 0;
     data->index = 0;
+
+	data->currentGoal = entity->pev->origin;
+	data->currentArea = TheNavAreaGrid.GetNavArea(&entity->pev->origin);
+
+	// Update time
+	data->update = 0;
+	data->update_min = update_min;
+	data->update_max = update_max;
 
 	TheConnectInfoList.push_front(data);
 	return data;
 }
 
-bool RemoveConnectInfoList(ConnectInfoData *data)
+ConnectInfoData* GetConnectInfoList(CBaseEntity *entity)
 {
-	if(!data)
-		return false;
-
 	// loop till gone
 	for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
 	{
-		if(*iter == data)
+		if((*iter)->entity == entity)
+			return *iter;
+	}
+
+	return nullptr;
+}
+
+bool RemoveConnectInfoList(CBaseEntity *entity)
+{
+	// loop till gone
+	for(auto iter = TheConnectInfoList.begin(); iter != TheConnectInfoList.end(); iter++)
+	{
+		if((*iter)->entity == entity)
 		{
+			ConnectInfoData *data = *iter;
+
 			TheConnectInfoList.remove(data);
 			
 			delete[] data->path;
@@ -36,8 +70,6 @@ bool RemoveConnectInfoList(ConnectInfoData *data)
 		}
 	}
 
-	// update anyway
-	data = nullptr;
 	return false;
 }
 
@@ -69,6 +101,7 @@ void BuildTrivialPath_api(ConnectInfoData *data, ConnectInfo_api *path, CNavArea
 
 	data->index = 1;
 	data->length = 2;
+	data->currentGoal = *goal;
 }
 
 bool ComputePathPositions_api(ConnectInfo_api *path, int &length)
@@ -186,31 +219,51 @@ bool ComputePathPositions_api(ConnectInfo_api *path, int &length)
 	return true;
 }
 
-ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
+ConnectInfoData* ComputePath(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
 {
 	// NOTE: This is a cheap way to do this, cuz I only reassembled the base code, needs extra functions to check if it can TRULY reach the path
-	// should provide start area
-	if(!startArea)
-		return data;
-	
-	// MAX_PATH_LENGTH is 256
+
 	// this nooby way could be better (I guess), free feel to pr to improve this code
 	// even if bots already does this, is this smart enough?
-	
-	if(!data)
+	if(!data || data->entity != entity)
     {
-	    // If no pointer is provided, add one
-    	data = AddConnectInfoList();
-    }
-    else
-    {
-        // too fast
-        if(data->update > gpGlobals->time)
-            return data;    
+	    // If no pointer or erroneous one was provided, add one
+    	data = AddConnectInfoList(entity);
     }
     
+	// too fast
+    if(data->update > gpGlobals->time)
+        return data;
+
+	// update current area
+	if (!data->currentArea || !data->currentArea->Contains(&entity->pev->origin))
+	{
+		// yes, this nested stupid code is for searching new areas
+		// it needs this kind of check or something stupid could happen
+		CNavArea *area = TheNavAreaGrid.GetNavArea(&entity->pev->origin);
+
+		// no area found, try searching one near
+		if(!area)
+			area = TheNavAreaGrid.GetNearestNavArea(&entity->pev->origin);
+
+		// available area
+		if(area)
+			data->currentArea = area;
+	}
+
+	// no start area provided
+	if(!startArea)
+	{
+		// use current's area
+		startArea = data->currentArea;
+
+		// no area to check, return data then
+		if(!startArea)
+			return data;
+	}
+    
     // Generate one the next time (same as cs_bot_pathfind.cpp)
-    data->update = gpGlobals->time + RANDOM_FLOAT(0.4f, 0.6f);
+    data->update = gpGlobals->time + RANDOM_FLOAT(data->update_min, data->update_max);
     ConnectInfo_api *path = data->path;
 
 	Vector vecEndPosition = *goal;
@@ -220,7 +273,7 @@ ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, con
 		vecEndPosition.z = goalArea->GetZ(&vecEndPosition);
 	else
 		GetGroundHeight(&vecEndPosition, &vecEndPosition.z);
-
+	
 	// if we are already in the goal area, build trivial path
 	if (startArea == goalArea)
 	{
@@ -280,7 +333,89 @@ ConnectInfoData* ComputePath_api(ConnectInfoData *data, CNavArea *startArea, con
 	path[data->length].ladder = nullptr;
 	path[data->length].how = NUM_TRAVERSE_TYPES;
 
+	data->currentGoal = path[1].pos;
 	data->length++;
 
 	return data;
+}
+
+bool UpdatePathMovement(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D)
+{
+	// no pointer or erroneous one provided
+	if(!data || data->entity != entity)
+	{
+		// Provide one then
+		data = GetConnectInfoList(entity);
+	}
+	
+	// there is no length (entity was spawned outside of map, yes, it crashed for me while testing)
+	if(!data->length)
+		return data;
+
+	Vector origin = entity->pev->origin;
+	Vector goal = origin + Vector(0, 0, entity->pev->mins.z);
+
+	// yes, some npc's models can be bigger than that, so we have to make sure the current nav area is within entity's feet
+	float limit = Q_max(120.0f, static_cast<float>(abs(entity->pev->mins.z)));
+	CNavArea *currentArea = TheNavAreaGrid.GetNavArea(&goal, limit);
+
+	// set new area
+	if(currentArea)
+	{
+		// update current area then
+		data->currentArea = currentArea;
+	}
+	else
+	{
+		// use latest
+		if(!data->currentArea)
+			return false;
+
+		currentArea = data->currentArea;
+	}
+	
+	// not using 2D, go down (mins should always be z <= 0)
+	if(!check2D)
+		origin.z += entity->pev->mins.z;
+	
+	// check bounds
+	if(data->index >= data->length)
+		data->index = (data->length) - 1;
+	
+	// loop through these indexes, cuz entity could be behind or already surpassed them
+	int start = data->index - 3;
+
+	if(start < 1)
+		start = 1;
+
+	int end = start + 3;
+
+	if(end > data->length)
+		end = data->length;
+
+	CNavArea *area;
+	float distance;
+
+	for(int i = start; i < end; i++)
+	{
+		area = data->path[i].area;
+
+		if(currentArea != area)
+			continue;
+
+		goal = *area->GetCenter();
+		distance = check2D ? (goal - origin).Length2D() : (goal - origin).Length();
+
+		if(distance <= tolerance)
+		{
+			// end of the path
+			if(++data->index >= data->length)
+				data->index = data->length - 1;
+
+			data->currentGoal = data->path[data->index].pos;
+			return true;
+		}
+	}
+
+	return false;
 }

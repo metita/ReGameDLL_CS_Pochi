@@ -148,6 +148,11 @@ NavErrorType EXT_FUNC LoadNavigationMap_api()
 	return LoadNavigationMap();
 }
 
+bool EXT_FUNC CheckNavigationmap_api()
+{
+	return !TheNavAreaList.empty();
+}
+
 void EXT_FUNC DestroyNavigationMap_api()
 {
 	DestroyNavigationMap();
@@ -165,14 +170,14 @@ void EXT_FUNC GetClosestPointOnArea_api(CNavArea *pArea, const Vector *vecOrigin
 	pArea->GetClosestPointOnArea(vecOrigin, vecPosition);
 }
 
-ConnectInfoData* EXT_FUNC AddConnectInfoList_api()
+ConnectInfoData* EXT_FUNC AddConnectInfoList_api(CBaseEntity *entity, float update_min, float update_max)
 {
-	return AddConnectInfoList();
+	return AddConnectInfoList(entity, update_min, update_max);
 }
 
-bool EXT_FUNC RemoveConnectInfoList_api(ConnectInfoData *data)
+bool EXT_FUNC RemoveConnectInfoList_api(CBaseEntity *entity)
 {
-	return RemoveConnectInfoList(data);
+	return RemoveConnectInfoList(entity);
 }
 
 void EXT_FUNC DestroyConnectInfoList_api()
@@ -180,14 +185,14 @@ void EXT_FUNC DestroyConnectInfoList_api()
 	DestroyConnectInfoList();
 }
 
-ConnectInfoData* EXT_FUNC ComputePath_extapi(ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
+ConnectInfoData* EXT_FUNC ComputePath_api(CBaseEntity *entity, ConnectInfoData *data, CNavArea *startArea, const Vector *start, CNavArea *goalArea, const Vector *goal, RouteType route)
 {
-	return ComputePath_api(data, startArea, start, goalArea, goal, route);
+	return ComputePath(entity, data, startArea, start, goalArea, goal, route);
 }
 
-ConnectInfoList* EXT_FUNC GetConnectInfoList_api()
+bool EXT_FUNC UpdatePathMovement_api(CBaseEntity *entity, ConnectInfoData *data, float tolerance, bool check2D)
 {
-	return &TheConnectInfoList;
+	return UpdatePathMovement(entity, data, tolerance, check2D);
 }
 
 ReGameFuncs_t g_ReGameApiFuncs = {
@@ -225,6 +230,7 @@ ReGameFuncs_t g_ReGameApiFuncs = {
 	SpawnGrenade_api,
 
 	LoadNavigationMap_api,
+	CheckNavigationmap_api,
 	DestroyNavigationMap_api,
 
 	AddConnectInfoList_api,
@@ -233,9 +239,9 @@ ReGameFuncs_t g_ReGameApiFuncs = {
 
 	GetNearestNavArea_api,
 	GetClosestPointOnArea_api,
-	ComputePath_extapi,
 
-	GetConnectInfoList_api,
+	ComputePath_api,
+	UpdatePathMovement_api,
 };
 
 GAMEHOOK_REGISTRY(CBasePlayer_Spawn);
